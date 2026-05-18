@@ -1,0 +1,1 @@
+app/.venv/bin/python -m unittest discover -s app/tests -p 'test_*.py' -v

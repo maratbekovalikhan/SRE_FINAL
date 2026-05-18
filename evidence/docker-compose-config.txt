@@ -1,0 +1,95 @@
+name: sre-capstone
+services:
+  alertmanager:
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    container_name: sre-alertmanager
+    image: prom/alertmanager:v0.27.0
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 9093
+        published: "9093"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/alertmanager/local-alertmanager.yml
+        target: /etc/alertmanager/alertmanager.yml
+        read_only: true
+        bind: {}
+  app:
+    build:
+      context: /Users/arslanmaratbekov/Downloads/sre-capstone/app
+      dockerfile: Dockerfile
+    container_name: sre-ecommerce-app
+    environment:
+      CPU_WORK_ITERATIONS: "30000"
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 5000
+        published: "8000"
+        protocol: tcp
+  grafana:
+    container_name: sre-grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+        required: true
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+    image: grafana/grafana:11.1.0
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 3000
+        published: "3000"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/grafana/provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+        bind: {}
+      - type: bind
+        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/grafana/ecommerce-dashboard.json
+        target: /var/lib/grafana/dashboards/ecommerce-dashboard.json
+        read_only: true
+        bind: {}
+  prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    container_name: sre-prometheus
+    depends_on:
+      alertmanager:
+        condition: service_started
+        required: true
+      app:
+        condition: service_started
+        required: true
+    image: prom/prometheus:v2.54.1
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 9090
+        published: "9090"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/prometheus/local-prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+        bind: {}
+      - type: bind
+        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/prometheus/local-alert-rules.yml
+        target: /etc/prometheus/alert_rules.yml
+        read_only: true
+        bind: {}
+networks:
+  default:
+    name: sre-capstone_default

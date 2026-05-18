@@ -1,0 +1,11 @@
+{
+  "url": "http://127.0.0.1:8000",
+  "requests": 300,
+  "concurrency": 30,
+  "successes": 300,
+  "failures": 0,
+  "duration_seconds": 0.14,
+  "requests_per_second": 2153.6,
+  "p95_ms": 56.38,
+  "p99_ms": 66.51
+}

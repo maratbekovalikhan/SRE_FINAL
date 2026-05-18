@@ -1,0 +1,7 @@
+Checking http://127.0.0.1:8000/health
+{"service":"ecommerce-api","status":"healthy"}
+
+Checking http://127.0.0.1:8000/products
+products ok
+Checking http://127.0.0.1:8000/metrics
+metrics ok

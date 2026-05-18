@@ -1,0 +1,71 @@
+groups:
+  - name: ecommerce_slo_alerts
+    rules:
+      # SLO: Availability > 99.9%
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) /
+          sum(rate(http_requests_total[5m])) > 0.001
+        for: 2m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "Error rate exceeds SLO (>0.1%)"
+          description: "Current error rate: {{ $value | humanizePercentage }}"
+
+      # SLO: Latency p99 < 500ms
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "p99 latency exceeds 500ms SLO"
+          description: "Endpoint {{ $labels.endpoint }} p99 latency: {{ $value }}s"
+
+      # Pod down
+      - alert: PodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total{namespace="production"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+
+      # Low order rate (business metric)
+      - alert: LowOrderRate
+        expr: |
+          sum(rate(orders_total{status="success"}[10m])) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Order rate is unusually low"
+          description: "Orders/sec: {{ $value }}"
+
+  - name: infrastructure_alerts
+    rules:
+      - alert: NodeHighCPU
+        expr: |
+          100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node CPU > 85%"
+
+      - alert: NodeHighMemory
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node memory > 85%"

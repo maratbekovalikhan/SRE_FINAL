@@ -1,0 +1,47 @@
+services:
+  app:
+    build:
+      context: ./app
+    container_name: sre-ecommerce-app
+    environment:
+      CPU_WORK_ITERATIONS: "30000"
+    ports:
+      - "8000:5000"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: sre-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/local-prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/local-alert-rules.yml:/etc/prometheus/alert_rules.yml:ro
+    depends_on:
+      - app
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: sre-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/local-alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: sre-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/ecommerce-dashboard.json:/var/lib/grafana/dashboards/ecommerce-dashboard.json:ro
+    depends_on:
+      - prometheus

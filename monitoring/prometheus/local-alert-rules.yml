@@ -1,0 +1,35 @@
+groups:
+  - name: ecommerce_local_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) /
+          clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Error rate is above 5%
+          description: The local demo app is returning too many 5xx responses.
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: p99 latency is above 500ms
+          description: One of the endpoints is slower than the SLO target.
+
+      - alert: LowOrderRate
+        expr: |
+          sum(rate(orders_total{status="success"}[5m])) < 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Order rate is low
+          description: Successful order traffic is below the expected demo threshold.
