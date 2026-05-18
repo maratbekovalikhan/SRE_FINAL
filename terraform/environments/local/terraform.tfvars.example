@@ -1,0 +1,3 @@
+app_image              = "task-api:local"
+database_password      = "CHANGE_ME"
+grafana_admin_password = "CHANGE_ME"

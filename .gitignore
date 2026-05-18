@@ -1,6 +1,4 @@
 .DS_Store
-.terraform/
-.terraform.lock.hcl
 __pycache__/
 *.pyc
 *.pyo
@@ -8,3 +6,10 @@ __pycache__/
 .tmp/
 app/.venv/
 CLAUDE.md
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+!*.tfvars.example
