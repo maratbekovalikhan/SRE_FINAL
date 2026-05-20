@@ -7,10 +7,10 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
-def hit(base_url):
+def hit(base_url, path, timeout):
     started = time.perf_counter()
     try:
-        with urllib.request.urlopen(f"{base_url}/products", timeout=10) as response:
+        with urllib.request.urlopen(f"{base_url.rstrip('/')}{path}", timeout=timeout) as response:
             response.read()
             status = response.status
     except urllib.error.HTTPError as exc:
@@ -24,8 +24,14 @@ def hit(base_url):
 def main():
     parser = argparse.ArgumentParser(description="Simple built-in load test for the capstone app.")
     parser.add_argument("--url", default="http://127.0.0.1:8000", help="Base URL of the service")
+    parser.add_argument(
+        "--path",
+        default="/work?delay=15&cpu_iterations=60000",
+        help="Request path used for each load-test request",
+    )
     parser.add_argument("--requests", type=int, default=200, help="Total number of requests")
     parser.add_argument("--concurrency", type=int, default=20, help="Number of concurrent workers")
+    parser.add_argument("--timeout", type=float, default=30.0, help="Per-request timeout in seconds")
     args = parser.parse_args()
 
     started = time.perf_counter()
@@ -34,7 +40,7 @@ def main():
     latencies = []
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-        futures = [pool.submit(hit, args.url) for _ in range(args.requests)]
+        futures = [pool.submit(hit, args.url, args.path, args.timeout) for _ in range(args.requests)]
         for future in as_completed(futures):
             status, latency = future.result()
             latencies.append(latency)
@@ -50,6 +56,7 @@ def main():
 
     summary = {
         "url": args.url,
+        "path": args.path,
         "requests": args.requests,
         "concurrency": args.concurrency,
         "successes": successes,

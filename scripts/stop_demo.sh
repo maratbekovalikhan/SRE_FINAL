@@ -2,20 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PID_FILE="$ROOT_DIR/.tmp/app.pid"
 
-if [[ ! -f "$PID_FILE" ]]; then
-  echo "No PID file found. App is probably not running."
-  exit 0
-fi
-
-APP_PID="$(cat "$PID_FILE")"
-
-if kill -0 "$APP_PID" 2>/dev/null; then
-  kill "$APP_PID"
-  echo "Stopped app process $APP_PID"
-else
-  echo "Process $APP_PID is not running."
-fi
-
-rm -f "$PID_FILE"
+cd "$ROOT_DIR"
+docker compose down --remove-orphans
+echo "Demo stack stopped."

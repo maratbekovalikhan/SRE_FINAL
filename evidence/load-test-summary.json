@@ -1,11 +1,12 @@
 {
   "url": "http://127.0.0.1:8000",
-  "requests": 300,
-  "concurrency": 30,
-  "successes": 300,
+  "path": "/work?delay=15&cpu_iterations=60000",
+  "requests": 120,
+  "concurrency": 12,
+  "successes": 120,
   "failures": 0,
-  "duration_seconds": 0.14,
-  "requests_per_second": 2153.6,
-  "p95_ms": 56.38,
-  "p99_ms": 66.51
+  "duration_seconds": 0.82,
+  "requests_per_second": 146.51,
+  "p95_ms": 134.79,
+  "p99_ms": 138.92
 }

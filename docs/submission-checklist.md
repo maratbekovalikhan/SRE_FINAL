@@ -1,31 +1,42 @@
 # Submission Checklist
 
 ## Repository
-- Public GitHub repository pushed
-- README is up to date
-- Terraform, Kubernetes, monitoring, and scripts are committed
+
+- Public GitHub repository
+- Updated `README.md`
+- Terraform, Kubernetes, monitoring, CI/CD, and scripts committed
+- `.terraform.lock.hcl` committed for reproducibility
 
 ## Before Demo
+
 - Run `make test`
-- Run `scripts/start_demo.sh`
-- Run `scripts/smoke_test.sh http://127.0.0.1:8000`
-- Run `app/.venv/bin/python scripts/load_test.py --url http://127.0.0.1:8000 --requests 300 --concurrency 30`
+- Run `./scripts/start_demo.sh`
+- Run `./scripts/smoke_test.sh http://127.0.0.1:8000`
+- Run `python3 scripts/load_test.py --url http://127.0.0.1:8000 --requests 300 --concurrency 30`
+- If demonstrating HPA, run Locust or repeated `/work?cpu_iterations=...` traffic
 
 ## Screenshots To Capture
-- GitHub Actions successful run
-- Grafana dashboard open
-- Alertmanager or alert rules visible
-- HPA or scaling evidence
-- Load test result
 
-## PDF Report
-- Architecture diagram or architecture section
-- SLOs and SLIs
-- Scaling strategy
-- Observability stack
-- CI/CD explanation
-- Screenshots inserted
+- Successful CI workflow run
+- Successful CD workflow run
+- Grafana dashboard with SLI panels visible
+- Alertmanager page or Prometheus alerts page with active/firing alert
+- `kubectl get hpa -n task-api -w` or dashboard view showing replicas scaling
+- Load test summary output
 
-## Final Safety
-- Keep `sre-capstone-restored-backup.zip`
-- Keep `sre-capstone 2` untouched as backup
+## PDF Report Must Include
+
+- Architecture overview
+- Terraform and state-management explanation
+- CI/CD workflow explanation
+- SLOs and alert rules
+- Auto-scaling strategy
+- Evidence screenshots
+
+## Evidence Folder
+
+- Refresh `test-output.txt`
+- Refresh `smoke-test.txt`
+- Refresh `load-test-summary.json`
+- Refresh `docker-compose-config.txt`
+- Add manual screenshots as `.png` files before final submission

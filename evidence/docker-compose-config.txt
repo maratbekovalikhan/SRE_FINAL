@@ -14,24 +14,55 @@ services:
         protocol: tcp
     volumes:
       - type: bind
-        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/alertmanager/local-alertmanager.yml
+        source: /Users/arslanmaratbekov/sre-final-project/sre-capstone/monitoring/alertmanager/local-alertmanager.yml
         target: /etc/alertmanager/alertmanager.yml
         read_only: true
         bind: {}
   app:
     build:
-      context: /Users/arslanmaratbekov/Downloads/sre-capstone/app
+      context: /Users/arslanmaratbekov/sre-final-project/sre-capstone
       dockerfile: Dockerfile
-    container_name: sre-ecommerce-app
+    container_name: sre-taskmanager-app
+    depends_on:
+      db:
+        condition: service_healthy
+        required: true
+      redis:
+        condition: service_healthy
+        required: true
     environment:
-      CPU_WORK_ITERATIONS: "30000"
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/taskmanager
+      REDIS_URL: redis://redis:6379/0
+      SIMULATE_DELAY_MS: "0"
+      SIMULATE_ERROR_RATE: "0.0"
     networks:
       default: null
     ports:
       - mode: ingress
-        target: 5000
+        target: 8000
         published: "8000"
         protocol: tcp
+  db:
+    container_name: sre-postgres
+    environment:
+      POSTGRES_DB: taskmanager
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres
+      timeout: 3s
+      interval: 5s
+      retries: 5
+    image: postgres:16-alpine
+    networks:
+      default: null
+    volumes:
+      - type: volume
+        source: pgdata
+        target: /var/lib/postgresql/data
+        volume: {}
   grafana:
     container_name: sre-grafana
     depends_on:
@@ -51,12 +82,12 @@ services:
         protocol: tcp
     volumes:
       - type: bind
-        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/grafana/provisioning
+        source: /Users/arslanmaratbekov/sre-final-project/sre-capstone/monitoring/grafana/provisioning
         target: /etc/grafana/provisioning
         read_only: true
         bind: {}
       - type: bind
-        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/grafana/ecommerce-dashboard.json
+        source: /Users/arslanmaratbekov/sre-final-project/sre-capstone/monitoring/grafana/ecommerce-dashboard.json
         target: /var/lib/grafana/dashboards/ecommerce-dashboard.json
         read_only: true
         bind: {}
@@ -81,15 +112,31 @@ services:
         protocol: tcp
     volumes:
       - type: bind
-        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/prometheus/local-prometheus.yml
+        source: /Users/arslanmaratbekov/sre-final-project/sre-capstone/monitoring/prometheus/local-prometheus.yml
         target: /etc/prometheus/prometheus.yml
         read_only: true
         bind: {}
       - type: bind
-        source: /Users/arslanmaratbekov/Downloads/sre-capstone/monitoring/prometheus/local-alert-rules.yml
+        source: /Users/arslanmaratbekov/sre-final-project/sre-capstone/monitoring/prometheus/local-alert-rules.yml
         target: /etc/prometheus/alert_rules.yml
         read_only: true
         bind: {}
+  redis:
+    container_name: sre-redis
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      timeout: 3s
+      interval: 5s
+      retries: 5
+    image: redis:7-alpine
+    networks:
+      default: null
 networks:
   default:
     name: sre-capstone_default
+volumes:
+  pgdata:
+    name: sre-capstone_pgdata

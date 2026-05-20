@@ -12,7 +12,7 @@ Deploy the full stack (app + monitoring) to a local Minikube cluster.
 
 ```bash
 # 1. Start Minikube with enough resources
-minikube start --cpus=4 --memory=8192
+minikube start --cpus=4 --memory=3800
 
 # 2. Enable required addons
 minikube addons enable ingress
@@ -31,6 +31,11 @@ terraform init
 terraform plan
 terraform apply
 ```
+
+Notes:
+- The local stack is tuned to fit inside a conservative Docker Desktop memory budget.
+- If Docker Desktop has more RAM available, `MINIKUBE_MEMORY_MB=6144 ./scripts/setup.sh` gives the monitoring stack more headroom.
+- The first `kube-prometheus-stack` install can still take several minutes on Minikube because Grafana/Prometheus images are large.
 
 ## Accessing the Application
 

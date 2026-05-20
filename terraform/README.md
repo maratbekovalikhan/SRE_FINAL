@@ -1,37 +1,38 @@
 # Terraform Infrastructure
 
-Hybrid IaC setup: same modules deploy to local Minikube or AWS EKS.
+Terraform is split into reusable modules plus environment-specific entrypoints.
 
-## Structure
+## Layout
 
-```
+```text
 terraform/
-├── modules/
-│   ├── kubernetes-app/    # Namespace, ConfigMap, Secret, PostgreSQL, Redis,
-│   │                      # task-api Deployment, Service, Ingress, HPA
-│   ├── monitoring/        # kube-prometheus-stack (Prometheus + Grafana),
-│   │                      # ServiceMonitor for task-api
-│   └── aws-eks/           # EKS + VPC stub (commented out, for defense demo)
+├── bootstrap/            optional S3 + DynamoDB remote-state bootstrap
 ├── environments/
-│   ├── local/             # Minikube — primary deployment target
-│   └── aws/               # AWS EKS — stub for cloud readiness
-└── bootstrap/             # S3 backend + DynamoDB lock table (AWS only)
+│   ├── local/            active Minikube deployment
+│   └── aws/              optional AWS/EKS scaffold
+└── modules/
+    ├── kubernetes-app/   namespace, secrets, DB, Redis, app, ingress, HPA
+    ├── monitoring/       kube-prometheus-stack plus ServiceMonitor
+    └── aws-eks/          commented cloud scaffold for defense discussion
 ```
 
-## Quick Start (Local)
+## Local Quick Start
 
 ```bash
-minikube start --cpus=4 --memory=8192
-minikube addons enable ingress
-minikube addons enable metrics-server
+./scripts/setup.sh
+```
 
-eval $(minikube docker-env)
-docker build -t task-api:local ../..
+That script starts Minikube, enables required addons, builds the app image inside Minikube, and runs `terraform apply` in `environments/local`.
 
-cd environments/local
+## Remote State Bootstrap
+
+If you want collaborative AWS-backed state:
+
+```bash
+cd terraform/bootstrap
+cp terraform.tfvars.example terraform.tfvars
 terraform init
-terraform plan
 terraform apply
 ```
 
-See [environments/local/README.md](environments/local/README.md) for details.
+Then uncomment the S3 backend in `environments/aws/backend.tf`.

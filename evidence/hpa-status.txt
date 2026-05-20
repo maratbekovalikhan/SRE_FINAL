@@ -1,0 +1,2 @@
+NAME           REFERENCE             TARGETS              MINPODS   MAXPODS   REPLICAS   AGE
+task-api-hpa   Deployment/task-api   cpu: <unknown>/70%   2         10        2          7m44s

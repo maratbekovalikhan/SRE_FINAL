@@ -1,53 +1,48 @@
-# SRE Capstone Report Outline
+# Report Outline
 
-## 1. Project Overview
-- Service name: SRE Ecommerce Platform
-- Goal: prepare a Flask-based e-commerce microservice for production readiness review
-- Cloud target: AWS EKS
-- Local demo target: Docker Compose / background Flask demo
+- Goal: show that the Task Manager API is ready for a Production Readiness Review
+- Service: FastAPI app exposing `/health`, `/ready`, `/tasks`, `/work`, and `/metrics`
+- Data layer: PostgreSQL + Redis
+- Runtime: Docker Compose for local demo, Kubernetes for deployment
 
-## 2. Architecture
-- Application: Flask service exposing `/`, `/health`, `/products`, `/orders`, `/metrics`
-- Containerization: Docker image built from `app/Dockerfile`
-- Orchestration: Kubernetes deployment, service, and HPA in `k8s/deployment.yaml`
-- Infrastructure as Code: Terraform for VPC, EKS, ECR, and backend bootstrap
-- Observability: Prometheus, Grafana, Alertmanager, ServiceMonitor, PrometheusRule
+## Architecture
 
-## 3. Infrastructure as Code
-- Explain `terraform/bootstrap/` for S3 state bucket and DynamoDB locking
-- Explain `terraform/main.tf` for VPC, EKS, and ECR
-- Mention reproducibility from scratch using Terraform and remote state
+- Application layer: FastAPI, SQLAlchemy, Redis cache
+- Platform layer: Kubernetes namespace, deployments, services, ingress, HPA
+- Observability layer: Prometheus, Grafana, Alertmanager
+- Delivery layer: GitHub Actions CI/CD
 
-## 4. CI/CD Pipeline
-- GitHub Actions workflow in `.github/workflows/ci-cd.yml`
-- Steps: checkout, install dependencies, run tests, build image, push to ECR, deploy to EKS
-- Include one screenshot of a successful workflow run
+## Infrastructure as Code
 
-## 5. Observability and Alerting
-- Prometheus scrape target: application metrics endpoint `/metrics`
-- Grafana dashboard: `monitoring/grafana/ecommerce-dashboard.json`
-- Alert rules: high error rate, high latency, low order rate, pod crash looping, node resource alerts
-- Include screenshots of Grafana dashboard and alert rules / Alertmanager
+- Explain Terraform modules under `terraform/modules/`
+- Explain `terraform/environments/local`
+- Mention `terraform/bootstrap` for optional AWS remote state bootstrap
+- Mention `terraform/environments/aws` as optional cloud migration scaffold
 
-## 6. SLOs and Scaling
-- Availability SLO: 99.9%
-- Latency SLO: p99 under 500 ms
-- Order success / business metric target
-- HPA based on CPU and memory
-- Mention `CPU_WORK_ITERATIONS` used for local/demo CPU pressure generation
+## CI/CD
 
-## 7. Load Testing
-- Primary tool: Locust (`locust/locustfile.py`)
-- Fallback local tool: `scripts/load_test.py`
-- Include summary numbers and screenshots of scaling if using EKS
+- CI checks: lint, tests, Terraform validate, Kubernetes schema validation, Docker build
+- CD flow: build image, push to GHCR, Trivy scan, deploy with `kubectl` when `KUBE_CONFIG_DATA` is configured
 
-## 8. Validation Summary
-- `make test`
-- `scripts/start_demo.sh`
-- `scripts/smoke_test.sh`
-- `scripts/load_test.py`
-- `docker compose config`
+## Observability
 
-## 9. Challenges and Improvements
-- Disk-space and Docker constraints during local verification
-- Next improvements: real registry credentials, live Alertmanager webhook, EKS live screenshots
+- Prometheus scraping of `/metrics`
+- Grafana dashboard from `monitoring/grafana/ecommerce-dashboard.json`
+- Alert rules: `HighErrorRate`, `HighLatency`, `TaskWriteFailureRate`, `PodCrashLooping`
+- Include screenshots from Grafana and Prometheus/Alertmanager
+
+## SLOs and Scaling
+
+- Availability SLO: `>= 99.9%`
+- p99 latency SLO: `< 500ms`
+- Task write success ratio SLO: `>= 99%`
+- HPA min/max replicas and CPU target
+- Explain `/work?cpu_iterations=...` as the scaling-demo workload
+
+## Evidence
+
+- GitHub Actions screenshots
+- Grafana screenshot
+- Alert screenshot
+- HPA scaling screenshot
+- Load test JSON or Locust summary

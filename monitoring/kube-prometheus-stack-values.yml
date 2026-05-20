@@ -1,42 +1,91 @@
+coreDns:
+  enabled: false
+
+kubeControllerManager:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeProxy:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+grafana:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
 prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
+    retention: 24h
+    walCompression: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
 
 alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
   config:
-    global:
-      resolve_timeout: 5m
-      slack_api_url: https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
     route:
-      receiver: slack-notifications
+      receiver: default
       group_by:
         - alertname
         - severity
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 4h
-      routes:
-        - matchers:
-            - severity="critical"
-          receiver: slack-critical
-          continue: true
-        - matchers:
-            - severity="warning"
-          receiver: slack-notifications
     receivers:
-      - name: slack-critical
-        slack_configs:
-          - channel: "#alerts-critical"
-            title: "CRITICAL: {{ .CommonAnnotations.summary }}"
-            text: "{{ range .Alerts }}{{ .Annotations.description }}{{ end }}"
-            color: "#FF0000"
-      - name: slack-notifications
-        slack_configs:
-          - channel: "#alerts"
-            title: "{{ .CommonAnnotations.summary }}"
-            text: "{{ range .Alerts }}{{ .Annotations.description }}{{ end }}"
-            color: "#FFA500"
+      - name: default
     inhibit_rules:
       - source_matchers:
           - severity="critical"

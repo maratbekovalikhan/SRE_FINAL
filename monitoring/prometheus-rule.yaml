@@ -1,18 +1,18 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: ecommerce-slo-rules
+  name: task-api-slo-rules
   namespace: monitoring
   labels:
-    release: prometheus
+    release: kube-prometheus-stack
 spec:
   groups:
-    - name: ecommerce_slo_alerts
+    - name: task_api_slo_alerts
       rules:
         - alert: HighErrorRate
           expr: |
             sum(rate(http_requests_total{status=~"5.."}[5m])) /
-            sum(rate(http_requests_total[5m])) > 0.001
+            clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.001
           for: 2m
           labels:
             severity: critical
@@ -24,7 +24,7 @@ spec:
         - alert: HighLatency
           expr: |
             histogram_quantile(0.99,
-              sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+              sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler)
             ) > 0.5
           for: 3m
           labels:
@@ -32,29 +32,30 @@ spec:
             team: sre
           annotations:
             summary: p99 latency exceeds 500ms SLO
-            description: Endpoint {{ $labels.endpoint }} has p99 latency above 500ms.
+            description: Handler {{ $labels.handler }} has p99 latency above 500ms.
 
-        - alert: LowOrderRate
+        - alert: TaskWriteFailureRate
           expr: |
-            sum(rate(orders_total{status="success"}[10m])) < 0.1
+            sum(rate(task_operations_total{operation=~"create|update|delete",result!="success"}[10m])) /
+            clamp_min(sum(rate(task_operations_total{operation=~"create|update|delete"}[10m])), 0.001) > 0.01
           for: 10m
           labels:
             severity: warning
             team: sre
           annotations:
-            summary: Order rate is unusually low
-            description: Successful orders per second dropped below the expected threshold.
+            summary: Task write success ratio fell below 99%
+            description: Create, update, or delete operations are failing too often.
 
         - alert: PodCrashLooping
           expr: |
-            rate(kube_pod_container_status_restarts_total{namespace="production"}[15m]) > 0
+            rate(kube_pod_container_status_restarts_total{namespace="task-api"}[15m]) > 0
           for: 5m
           labels:
             severity: critical
             team: sre
           annotations:
             summary: Pod {{ $labels.pod }} is crash looping
-            description: One or more production pods restarted during the last 15 minutes.
+            description: One or more task-api pods restarted during the last 15 minutes.
 
     - name: infrastructure_alerts
       rules:

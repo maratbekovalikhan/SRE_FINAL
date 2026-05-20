@@ -3,181 +3,169 @@
 ![CI](https://github.com/maratbekovalikhan/sre-capstone/actions/workflows/ci.yml/badge.svg)
 ![CD](https://github.com/maratbekovalikhan/sre-capstone/actions/workflows/cd.yml/badge.svg)
 
-**Team:** Alihan & Nurassyl | **Platform:** Minikube / AWS EKS | **Stack:** FastAPI + PostgreSQL + Redis + Prometheus
+Production-readiness project for an SRE capstone. The service is a FastAPI-based task manager with PostgreSQL, Redis, Prometheus, Grafana, Alertmanager, Terraform, Kubernetes, Docker, and GitHub Actions.
 
-Production-ready microservice with full observability, CI/CD, and infrastructure as code.
+## What this repository demonstrates
 
-## Quick Start (Docker)
+- **Infrastructure as Code:** Terraform modules for application resources, monitoring, HPA, and optional AWS state bootstrap
+- **CI/CD:** GitHub Actions for linting, tests, Docker image publishing to GHCR, and cluster deployment through `kubectl`
+- **Observability:** Prometheus scraping, Grafana dashboard provisioning, Alertmanager routing, and PrometheusRule alerts
+- **SRE Operations:** health/readiness probes, SLO-backed alerts, HPA, and load-testing with Locust or the built-in workload script
+
+## Quick Start
+
+### Local demo stack
 
 ```bash
-git clone <repo-url> && cd sre-capstone
-docker compose up --build -d
+git clone <repo-url>
+cd sre-capstone
+./scripts/start_demo.sh
 ```
 
 Services:
 
 | Service | URL |
 |---------|-----|
-| API (Swagger UI) | http://localhost:8000/docs |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 (admin/admin) |
-| Alertmanager | http://localhost:9093 |
+| API Docs | http://127.0.0.1:8000/docs |
+| Prometheus | http://127.0.0.1:9090 |
+| Grafana | http://127.0.0.1:3000 |
+| Alertmanager | http://127.0.0.1:9093 |
 
-DB migrations run automatically on startup.
+Grafana credentials: `admin / admin`
 
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Service info |
-| GET | `/health` | Liveness probe |
-| GET | `/ready` | Readiness probe (checks DB + Redis) |
-| POST | `/tasks` | Create task |
-| GET | `/tasks` | List all tasks |
-| GET | `/tasks/{id}` | Get task (Redis-cached) |
-| PUT | `/tasks/{id}` | Update task |
-| DELETE | `/tasks/{id}` | Delete task |
-| GET | `/work?delay=500&fail_rate=0.1` | Chaos endpoint for load testing |
-| GET | `/metrics` | Prometheus metrics |
-
-## Local Development (without Docker)
+Stop the stack:
 
 ```bash
-# Prerequisites: Python 3.11+, PostgreSQL, Redis running locally
-pip install -r requirements.txt
-
-# Create database and run migrations
-createdb taskmanager
-alembic upgrade head
-
-# Start server
-uvicorn app.main:app --reload --port 8000
+./scripts/stop_demo.sh
 ```
 
-## Running Tests
+### Smoke test
 
 ```bash
-pip install pytest pytest-asyncio
-python -m pytest tests/ -v
+./scripts/smoke_test.sh http://127.0.0.1:8000
 ```
 
-## Environment Variables
-
-See `.env.example` for all options:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/taskmanager` | PostgreSQL connection |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
-| `SIMULATE_DELAY_MS` | `0` | Global artificial delay (ms) |
-| `SIMULATE_ERROR_RATE` | `0.0` | Global error injection (0.0–1.0) |
-| `DEBUG` | `false` | Enable debug logging |
-
-## Load Testing
+### Built-in load test
 
 ```bash
-# Chaos endpoint — simulate 50% errors with 200ms delay
-curl 'http://localhost:8000/work?delay=200&fail_rate=0.5'
+python3 scripts/load_test.py \
+  --url http://127.0.0.1:8000 \
+  --path /work?delay=15\&cpu_iterations=60000 \
+  --requests 300 \
+  --concurrency 30
+```
 
-# Locust (full load test)
-pip install locust
-locust -f locust/locustfile.py --host=http://localhost:8000 \
+### Locust load test
+
+```bash
+locust -f locust/locustfile.py --host=http://127.0.0.1:8000 \
   --users 100 --spawn-rate 10 --run-time 5m --headless
-
-# Simple Python load test (no extra deps)
-python scripts/load_test.py --url http://localhost:8000 --requests 300 --concurrency 30
 ```
 
-## AWS Deployment
+## API
 
-### 1. Infrastructure (Terraform)
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/` | Service info |
+| `GET` | `/health` | Liveness probe |
+| `GET` | `/ready` | Readiness probe for DB and Redis |
+| `POST` | `/tasks` | Create task |
+| `GET` | `/tasks` | List tasks |
+| `GET` | `/tasks/{id}` | Read one task |
+| `PUT` | `/tasks/{id}` | Update task |
+| `DELETE` | `/tasks/{id}` | Delete task |
+| `GET` | `/work` | Synthetic workload for latency/error/HPA demos |
+| `GET` | `/metrics` | Prometheus metrics |
+
+## Terraform
+
+Main Terraform paths:
+
+- `terraform/environments/local` for Minikube
+- `terraform/environments/aws` for the optional AWS/EKS scaffold
+- `terraform/bootstrap` for optional S3 + DynamoDB remote-state bootstrap
+
+Local deployment:
 
 ```bash
-# One-time: create S3 state backend
-cd terraform/bootstrap && terraform init && terraform apply
-
-# Provision VPC + EKS + ECR
-cd terraform && terraform init && terraform apply -var-file=terraform.tfvars
+./scripts/setup.sh
 ```
 
-### 2. Application (Kubernetes)
+Useful evidence helpers:
 
 ```bash
-aws eks update-kubeconfig --region us-east-1 --name sre-ecommerce-cluster
-./scripts/install_metrics_server.sh
-
-IMAGE_URI=<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/sre-ecommerce-app:latest
-sed "s|IMAGE_PLACEHOLDER|$IMAGE_URI|g" k8s/deployment.yaml | kubectl apply -f -
+./scripts/collect_local_evidence.sh
+./scripts/collect_k8s_evidence.sh
+./scripts/hpa_demo.sh
 ```
 
-### 3. Monitoring (Helm)
+Redeploy a specific image:
 
 ```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-  --namespace monitoring --create-namespace \
-  -f monitoring/kube-prometheus-stack-values.yml
+./scripts/deploy.sh ghcr.io/<owner>/<repo>:latest
+```
 
-kubectl apply -f monitoring/servicemonitor.yaml
-kubectl apply -f monitoring/prometheus-rule.yaml
+Cleanup:
+
+```bash
+./scripts/teardown.sh
+```
+
+## CI/CD
+
+### CI
+
+`/.github/workflows/ci.yml` validates:
+
+- Python lint and formatting
+- pytest test suite
+- Terraform formatting and validation
+- Kubernetes manifest schema checks
+- Docker buildability
+
+### CD
+
+`/.github/workflows/cd.yml` performs:
+
+- Docker build and push to GHCR
+- Trivy image scan
+- Automatic deployment to a Kubernetes cluster when `KUBE_CONFIG_DATA` is configured as a GitHub Actions secret
+
+`KUBE_CONFIG_DATA` should contain a base64-encoded kubeconfig:
+
+```bash
+base64 -i ~/.kube/config | pbcopy
 ```
 
 ## SLOs
 
-| SLI | SLO | Alert Threshold |
-|-----|-----|-----------------|
-| Availability | >= 99.9% | Error rate > 0.1% |
-| Latency p99 | < 500ms | p99 > 500ms for 3min |
-| Task success rate | >= 99.5% | < 99% for 10min |
+| SLI | Target SLO | Alert |
+|-----|------------|-------|
+| Availability | `>= 99.9%` | `HighErrorRate` |
+| p99 latency | `< 500ms` | `HighLatency` |
+| Task write success ratio | `>= 99%` | `TaskWriteFailureRate` |
 
-## CI/CD
+## Project Layout
 
-Two GitHub Actions pipelines:
-
-**CI** (`.github/workflows/ci.yml`) — runs on PRs and non-main branches:
-1. Lint Python (ruff)
-2. Run tests (pytest with PostgreSQL + Redis services)
-3. Lint Terraform (fmt + validate)
-4. Lint Kubernetes manifests (kubeconform)
-5. Docker build check (no push)
-
-**CD** (`.github/workflows/cd.yml`) — runs on push to main:
-1. Build & push Docker image to GHCR (`ghcr.io`)
-2. Security scan with Trivy
-3. Update image tag in K8s manifests and Terraform tfvars
-
-**Local deploy** (pull-based for Minikube):
-```bash
-# First time setup
-./scripts/setup.sh
-
-# Deploy latest image from GHCR
-./scripts/deploy.sh ghcr.io/maratbekovalikhan/sre-capstone:latest
-
-# Teardown
-./scripts/teardown.sh
+```text
+app/                    FastAPI application and metrics
+tests/                  pytest suite
+k8s/                    Kubernetes manifests, including HPA
+terraform/              Terraform environments, modules, and bootstrap
+monitoring/             Prometheus, Grafana, and Alertmanager configs
+locust/                 Locust load-test scenario
+scripts/                Demo, deploy, teardown, and evidence collection scripts
+docs/                   Report, checklist, and defense notes
+evidence/               Generated logs plus manual screenshots for submission
 ```
 
-No secrets required — uses `GITHUB_TOKEN` automatically.
+## Submission checklist
 
-## Project Structure
+Before submitting:
 
-```
-├── app/                    # FastAPI application
-│   ├── main.py             # Endpoints + middleware
-│   ├── config.py           # Settings via env vars
-│   ├── database.py         # Async SQLAlchemy
-│   ├── cache.py            # Async Redis
-│   ├── models.py           # Task model
-│   ├── schemas.py          # Pydantic schemas
-│   └── metrics.py          # Custom Prometheus metrics
-├── alembic/                # Database migrations
-├── tests/                  # pytest tests
-├── terraform/              # AWS infrastructure (VPC, EKS, ECR)
-├── k8s/                    # Kubernetes manifests + HPA
-├── monitoring/             # Prometheus, Grafana, Alertmanager configs
-├── locust/                 # Load testing
-├── docker-compose.yml      # Full local stack
-├── Dockerfile              # Multi-stage build
-└── requirements.txt
-```
+1. Run `./scripts/start_demo.sh`
+2. Run `make test`
+3. Run `./scripts/smoke_test.sh`
+4. Run `python3 scripts/load_test.py ...`
+5. Capture screenshots for GitHub Actions, Grafana, Alertmanager, and HPA
+6. Insert those screenshots into the PDF report

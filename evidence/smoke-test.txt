@@ -1,7 +1,12 @@
 Checking http://127.0.0.1:8000/health
-{"service":"ecommerce-api","status":"healthy"}
-
-Checking http://127.0.0.1:8000/products
-products ok
+{"status":"healthy"}
+Checking http://127.0.0.1:8000/ready
+{"status":"ready","checks":{"database":"ok","redis":"ok"}}
+Creating a demo task
+task created: 2
+Checking http://127.0.0.1:8000/tasks/2
+task fetch ok
+Checking http://127.0.0.1:8000/work
+work endpoint ok
 Checking http://127.0.0.1:8000/metrics
 metrics ok

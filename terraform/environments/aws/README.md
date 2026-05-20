@@ -1,54 +1,38 @@
-# AWS Environment (EKS)
+# AWS Environment
 
-This is a **stub** environment for deploying to AWS EKS.
-It demonstrates that the same Terraform modules used locally can be
-applied to a managed Kubernetes cluster in the cloud.
+This environment is an optional cloud migration path. The local Minikube environment is the primary runnable demo, while this folder documents how the same service can be promoted toward EKS.
 
-## Status
+## What is already here
 
-**Not active** — the EKS module is commented out. This environment exists to
-show architectural readiness for cloud migration during the project defense.
+- provider definitions
+- variables for image, passwords, cluster name, and region
+- a backend file ready to switch from local state to S3
+- module wiring for the application and monitoring stack
+- an `aws-eks` scaffold module for the cluster layer
 
-## How to activate
+## What still requires cloud credentials
 
-1. Configure AWS credentials:
-   ```bash
-   aws configure
-   ```
+- uncommenting the EKS module
+- uncommenting the S3 backend
+- applying the configuration against AWS
 
-2. Create the S3 backend (one-time):
-   ```bash
-   cd terraform/bootstrap
-   terraform init && terraform apply
-   ```
+## Suggested activation flow
 
-3. Uncomment the S3 backend in `backend.tf` and the EKS module in `main.tf`.
+```bash
+cd ../../bootstrap
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform apply
 
-4. Copy and fill in variables:
-   ```bash
-   cp terraform.tfvars.example terraform.tfvars
-   ```
-
-5. Deploy:
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-
-6. Configure kubectl:
-   ```bash
-   aws eks update-kubeconfig --name sre-capstone --region us-east-1
-   ```
-
-## Architecture
-
+cd ../environments/aws
+cp terraform.tfvars.example terraform.tfvars
+terraform init -reconfigure
+terraform plan
+terraform apply
 ```
-AWS VPC
-├── Public subnets  → NAT Gateway, ALB
-└── Private subnets → EKS node groups (general + spot)
-    ├── task-api (same module as local)
-    ├── PostgreSQL (same module as local)
-    ├── Redis (same module as local)
-    └── Monitoring stack (same module as local)
+
+After the cluster exists, update kubeconfig:
+
+```bash
+aws eks update-kubeconfig --name sre-capstone --region us-east-1
 ```

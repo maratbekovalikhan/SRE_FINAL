@@ -1,3 +1,60 @@
-App started successfully on http://127.0.0.1:8000
-PID: 58484
-Logs: /Users/arslanmaratbekov/Downloads/sre-capstone/.tmp/app.log
+Starting full demo stack with Docker Compose...
+#1 [internal] load local bake definitions
+#1 reading from stdin 558B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 768B 0.0s done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 DONE 7.7s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 203B 0.0s done
+#4 DONE 0.0s
+
+#5 [builder 1/4] FROM docker.io/library/python:3.11-slim@sha256:2c285c669cc837aa3bcf1af23ea1932b7b5214f9c9d3aad22417446ad91cb4fb
+#5 resolve docker.io/library/python:3.11-slim@sha256:2c285c669cc837aa3bcf1af23ea1932b7b5214f9c9d3aad22417446ad91cb4fb done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 5.55kB done
+#6 DONE 0.0s
+
+#7 [builder 4/4] RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+#7 CACHED
+
+#8 [builder 2/4] WORKDIR /app
+#8 CACHED
+
+#9 [stage-1 3/5] COPY --from=builder /install /usr/local
+#9 CACHED
+
+#10 [stage-1 4/5] COPY . .
+#10 CACHED
+
+#11 [builder 3/4] COPY requirements.txt .
+#11 CACHED
+
+#12 [stage-1 5/5] RUN chmod +x entrypoint.sh
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers done
+#13 exporting manifest sha256:b225474fe5fe71b6686198452634fd0d5cdc6d3aa3ebe1e9e5917c45a7fc3d8d done
+#13 exporting config sha256:2285df573568955e838033c04cead133180617c0162e9b449aa0f8c5fbccb58e done
+#13 exporting attestation manifest sha256:1408ead838538db108cc74703941d41724e81ae835de836c71a2c906cb304870
+#13 exporting attestation manifest sha256:1408ead838538db108cc74703941d41724e81ae835de836c71a2c906cb304870 0.0s done
+#13 exporting manifest list sha256:9900c9f4504a3e826272b2fd3c8bec08136d134e5fe90db858b0a8c75ba3b9cc 0.0s done
+#13 naming to docker.io/library/sre-capstone-app:latest done
+#13 unpacking to docker.io/library/sre-capstone-app:latest done
+#13 DONE 0.1s
+
+#14 resolving provenance for metadata file
+#14 DONE 0.0s
+Demo stack is ready.
+App:          http://127.0.0.1:8000/docs
+Prometheus:   http://127.0.0.1:9090
+Grafana:      http://127.0.0.1:3000  (admin/admin)
+Alertmanager: http://127.0.0.1:9093

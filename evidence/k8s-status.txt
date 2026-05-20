@@ -1,0 +1,15 @@
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/postgres   0/1     1            0           9m58s
+deployment.apps/redis      0/1     1            0           10m
+deployment.apps/task-api   2/2     2            2           10m
+
+NAME                            READY   STATUS    RESTARTS       AGE
+pod/postgres-7b9c9f4d56-xc66p   0/1     Running   0              9m59s
+pod/redis-5bd56c6df6-tkfhr      0/1     Running   0              10m
+pod/task-api-69cfcf7fd7-cn74d   1/1     Running   4 (9m4s ago)   10m
+pod/task-api-69cfcf7fd7-h9s5f   1/1     Running   4 (9m4s ago)   10m
+
+NAME                       TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/postgres-service   ClusterIP   10.99.70.103    <none>        5432/TCP   10m
+service/redis-service      ClusterIP   10.108.233.89   <none>        6379/TCP   10m
+service/task-api-service   ClusterIP   10.96.1.107     <none>        80/TCP     10m

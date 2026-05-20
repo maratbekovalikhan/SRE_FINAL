@@ -4,6 +4,11 @@ from prometheus_client import Counter, Histogram
 TASKS_CREATED = Counter("tasks_created_total", "Total tasks created")
 TASKS_UPDATED = Counter("tasks_updated_total", "Total tasks updated")
 TASKS_DELETED = Counter("tasks_deleted_total", "Total tasks deleted")
+TASK_OPERATIONS = Counter(
+    "task_operations_total",
+    "Task API operations by operation type and outcome",
+    ["operation", "result"],
+)
 CACHE_HITS = Counter("cache_hits_total", "Redis cache hits")
 CACHE_MISSES = Counter("cache_misses_total", "Redis cache misses")
 DB_QUERY_DURATION = Histogram(

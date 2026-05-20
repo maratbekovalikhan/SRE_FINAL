@@ -90,6 +90,13 @@ async def test_work_with_delay(client):
 
 
 @pytest.mark.asyncio
+async def test_work_with_cpu_iterations(client):
+    resp = await client.get("/work?cpu_iterations=1000")
+    assert resp.status_code == 200
+    assert resp.json()["cpu_iterations"] == 1000
+
+
+@pytest.mark.asyncio
 async def test_work_fail_rate_full(client):
     resp = await client.get("/work?fail_rate=1.0")
     assert resp.status_code == 500

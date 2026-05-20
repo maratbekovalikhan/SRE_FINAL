@@ -1,11 +1,11 @@
 groups:
-  - name: ecommerce_slo_alerts
+  - name: task_api_slo_alerts
     rules:
       # SLO: Availability > 99.9%
       - alert: HighErrorRate
         expr: |
           sum(rate(http_requests_total{status=~"5.."}[5m])) /
-          sum(rate(http_requests_total[5m])) > 0.001
+          clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.001
         for: 2m
         labels:
           severity: critical
@@ -18,7 +18,7 @@ groups:
       - alert: HighLatency
         expr: |
           histogram_quantile(0.99,
-            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler)
           ) > 0.5
         for: 3m
         labels:
@@ -26,29 +26,31 @@ groups:
           team: sre
         annotations:
           summary: "p99 latency exceeds 500ms SLO"
-          description: "Endpoint {{ $labels.endpoint }} p99 latency: {{ $value }}s"
+          description: "Handler {{ $labels.handler }} p99 latency: {{ $value }}s"
 
       # Pod down
       - alert: PodCrashLooping
         expr: |
-          rate(kube_pod_container_status_restarts_total{namespace="production"}[15m]) > 0
+          rate(kube_pod_container_status_restarts_total{namespace="task-api"}[15m]) > 0
         for: 5m
         labels:
           severity: critical
+          team: sre
         annotations:
           summary: "Pod {{ $labels.pod }} is crash looping"
 
-      # Low order rate (business metric)
-      - alert: LowOrderRate
+      # SLO: Task write success rate > 99%
+      - alert: TaskWriteFailureRate
         expr: |
-          sum(rate(orders_total{status="success"}[10m])) < 0.1
+          sum(rate(task_operations_total{operation=~"create|update|delete",result!="success"}[10m])) /
+          clamp_min(sum(rate(task_operations_total{operation=~"create|update|delete"}[10m])), 0.001) > 0.01
         for: 10m
         labels:
           severity: warning
           team: sre
         annotations:
-          summary: "Order rate is unusually low"
-          description: "Orders/sec: {{ $value }}"
+          summary: "Task write success ratio fell below 99%"
+          description: "Non-successful write operations exceeded the 1% error budget."
 
   - name: infrastructure_alerts
     rules:

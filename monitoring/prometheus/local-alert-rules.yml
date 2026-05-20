@@ -1,5 +1,5 @@
 groups:
-  - name: ecommerce_local_alerts
+  - name: task_api_local_alerts
     rules:
       - alert: HighErrorRate
         expr: |
@@ -15,7 +15,7 @@ groups:
       - alert: HighLatency
         expr: |
           histogram_quantile(0.99,
-            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler)
           ) > 0.5
         for: 2m
         labels:
@@ -24,12 +24,13 @@ groups:
           summary: p99 latency is above 500ms
           description: One of the endpoints is slower than the SLO target.
 
-      - alert: LowOrderRate
+      - alert: TaskWriteFailureRate
         expr: |
-          sum(rate(orders_total{status="success"}[5m])) < 0.05
-        for: 5m
+          sum(rate(task_operations_total{operation=~"create|update|delete",result!="success"}[5m])) /
+          clamp_min(sum(rate(task_operations_total{operation=~"create|update|delete"}[5m])), 0.001) > 0.01
+        for: 2m
         labels:
           severity: warning
         annotations:
-          summary: Order rate is low
-          description: Successful order traffic is below the expected demo threshold.
+          summary: Task write success ratio fell below 99%
+          description: Create, update, or delete requests are failing too often in the demo workload.

@@ -2,8 +2,8 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: sre-ecommerce
-    environment: production
+    cluster: sre-capstone
+    environment: task-api
 
 alerting:
   alertmanagers:
@@ -18,11 +18,11 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "ecommerce-app"
+  - job_name: "task-api"
     kubernetes_sd_configs:
       - role: pod
         namespaces:
-          names: ["production"]
+          names: ["task-api"]
     relabel_configs:
       - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
         action: keep

@@ -1,0 +1,6 @@
+NAME                                                        READY   STATUS              RESTARTS       AGE
+alertmanager-kube-prometheus-stack-alertmanager-0           0/2     Init:0/1            0              2m24s
+kube-prometheus-stack-grafana-7cf96658f-bc224               0/3     ContainerCreating   0              4m42s
+kube-prometheus-stack-kube-state-metrics-5ff4575db7-zcszc   0/1     ContainerCreating   0              4m42s
+kube-prometheus-stack-operator-7dff6ff545-25jx9             1/1     Running             1 (100s ago)   4m42s
+kube-prometheus-stack-prometheus-node-exporter-g5zfh        1/1     Running             0              4m42s

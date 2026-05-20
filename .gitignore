@@ -11,5 +11,6 @@ CLAUDE.md
 .terraform/
 terraform.tfstate
 terraform.tfstate.backup
+*.tfstate.lock.info
 *.tfvars
 !*.tfvars.example

@@ -32,8 +32,15 @@ fi
 info "All critical tools found."
 
 # ─── Step 2: Start Minikube ───────────────────────────────────────────────
-info "Starting Minikube cluster..."
-minikube start --cpus=4 --memory=6144 --driver=docker
+MINIKUBE_HOST_STATUS="$(minikube status --format='{{.Host}}' 2>/dev/null || true)"
+MINIKUBE_APISERVER_STATUS="$(minikube status --format='{{.APIServer}}' 2>/dev/null || true)"
+
+if [[ "$MINIKUBE_HOST_STATUS" == "Running" && "$MINIKUBE_APISERVER_STATUS" == "Running" ]]; then
+  info "Minikube cluster is already healthy. Reusing existing profile."
+else
+  info "Starting or repairing Minikube cluster..."
+  minikube start --cpus=4 --memory="${MINIKUBE_MEMORY_MB:-3800}" --driver=docker
+fi
 
 # ─── Step 3: Enable addons ────────────────────────────────────────────────
 info "Enabling ingress addon..."

@@ -1,47 +1,49 @@
-# GitHub Repository Setup
+# GitHub Setup
 
-Instructions for configuring the GitHub repository for CI/CD.
+## Repository Settings
 
-## 1. Make Repository Public
+- Make the repository public
+- Enable GitHub Actions
+- Set workflow permissions to `Read and write permissions`
 
-The repository must be public (assignment requirement).
+## Required Secrets
 
-Settings → General → Danger Zone → Change visibility → **Public**
+### Optional for auto-deploy
 
-## 2. Configure GitHub Actions Permissions
+`KUBE_CONFIG_DATA`
 
-Settings → Actions → General:
+- Value: base64-encoded kubeconfig for the target Kubernetes cluster
+- Example:
 
-- **Workflow permissions**: select **"Read and write permissions"**
-- Check **"Allow GitHub Actions to create and approve pull requests"**
+```bash
+base64 -i ~/.kube/config | pbcopy
+```
 
-This is needed so the CD workflow can:
-- Push Docker images to GHCR (packages: write)
-- Commit updated image tags back to the repo (contents: write)
+Without this secret, CI still works and CD still publishes images to GHCR, but the deploy job is skipped.
 
-## 3. GitHub Container Registry (GHCR)
+## GHCR
 
-GHCR is enabled by default for all public repositories. The workflows use
-`${{ secrets.GITHUB_TOKEN }}` automatically — no additional tokens needed.
+The workflows use `${{ secrets.GITHUB_TOKEN }}` for GHCR login.
 
-## 4. After First Successful CD Run
+After the first publish:
 
-1. Go to your GitHub profile → **Packages**
-2. Find the `sre-capstone` package
-3. Click the package → **Package settings**
-4. **Change visibility** → **Public**
+1. Open your GitHub profile
+2. Go to `Packages`
+3. Open the package for this repository
+4. Make it public if you want unauthenticated pulls
 
-This allows `docker pull` without authentication.
+## What To Commit
 
-## 5. What to Commit / What to Ignore
+- `.github/workflows/*`
+- `terraform.tfvars.example`
+- `.terraform.lock.hcl`
+- Kubernetes manifests
+- Monitoring configs
 
-**DO NOT commit:**
-- `.env` (local environment variables)
-- `terraform.tfvars` (contains passwords)
-- `*.tfstate` / `*.tfstate.backup`
-- `.terraform/` directory
+## What Not To Commit
 
-**DO commit:**
-- `terraform.tfvars.example` (template without secrets)
-- `.terraform.lock.hcl` (provider lock file)
-- All workflow files in `.github/workflows/`
+- `.env`
+- `terraform.tfvars`
+- `.terraform/`
+- `*.tfstate`
+- real kubeconfigs or cluster credentials

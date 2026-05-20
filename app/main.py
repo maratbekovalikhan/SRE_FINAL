@@ -6,6 +6,7 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,7 @@ from app.metrics import (
     CACHE_HITS,
     CACHE_MISSES,
     DB_QUERY_DURATION,
+    TASK_OPERATIONS,
     TASKS_CREATED,
     TASKS_DELETED,
     TASKS_UPDATED,
@@ -56,6 +58,17 @@ def setup_logging():
     root.setLevel(logging.DEBUG if settings.debug else logging.INFO)
     # Quiet down noisy libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+
+def record_task_operation(operation: str, result: str) -> None:
+    TASK_OPERATIONS.labels(operation=operation, result=result).inc()
+
+
+def burn_cpu(iterations: int) -> int:
+    checksum = 0
+    for index in range(iterations):
+        checksum = (checksum + (index * index)) % 1000003
+    return checksum
 
 
 # ── Lifespan (startup + graceful shutdown) ───────────────────────
@@ -112,7 +125,8 @@ async def ready():
         checks["redis"] = "unavailable"
 
     all_ok = all(v == "ok" for v in checks.values())
-    return {"status": "ready" if all_ok else "degraded", "checks": checks}
+    payload = {"status": "ready" if all_ok else "degraded", "checks": checks}
+    return JSONResponse(status_code=200 if all_ok else 503, content=payload)
 
 
 # ── /work — chaos endpoint for load testing ──────────────────────
@@ -122,6 +136,12 @@ async def ready():
 async def work(
     delay: int = Query(0, ge=0, le=10000, description="Simulated delay in ms"),
     fail_rate: float = Query(0.0, ge=0.0, le=1.0, description="Probability of 500 error"),
+    cpu_iterations: int = Query(
+        0,
+        ge=0,
+        le=5_000_000,
+        description="CPU work units for load-testing and HPA demonstrations",
+    ),
 ):
     """Simulate slow/failing requests. Use for load testing and alerting demos."""
     start = time.perf_counter()
@@ -129,16 +149,31 @@ async def work(
     if delay > 0:
         await asyncio.sleep(delay / 1000.0)
 
+    checksum = burn_cpu(cpu_iterations) if cpu_iterations else 0
+
     if fail_rate > 0 and random.random() < fail_rate:
         WORK_REQUESTS.labels(result="error").inc()
         WORK_DURATION.observe(time.perf_counter() - start)
-        logger.warning("simulated failure", extra={"delay": delay, "fail_rate": fail_rate})
+        logger.warning(
+            "simulated failure",
+            extra={
+                "delay": delay,
+                "fail_rate": fail_rate,
+                "cpu_iterations": cpu_iterations,
+            },
+        )
         raise HTTPException(status_code=500, detail="Simulated failure")
 
     elapsed = time.perf_counter() - start
     WORK_REQUESTS.labels(result="success").inc()
     WORK_DURATION.observe(elapsed)
-    return {"status": "ok", "delay_ms": delay, "elapsed_ms": round(elapsed * 1000, 2)}
+    return {
+        "status": "ok",
+        "delay_ms": delay,
+        "cpu_iterations": cpu_iterations,
+        "checksum": checksum,
+        "elapsed_ms": round(elapsed * 1000, 2),
+    }
 
 
 # ── CRUD ─────────────────────────────────────────────────────────
@@ -153,6 +188,7 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
     await db.refresh(task)
     DB_QUERY_DURATION.labels(operation="insert").observe(time.perf_counter() - start)
     TASKS_CREATED.inc()
+    record_task_operation("create", "success")
     logger.info("task created", extra={"task_id": task.id})
     return task
 
@@ -163,6 +199,7 @@ async def list_tasks(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Task).order_by(Task.created_at.desc()))
     tasks = result.scalars().all()
     DB_QUERY_DURATION.labels(operation="select").observe(time.perf_counter() - start)
+    record_task_operation("list", "success")
     return tasks
 
 
@@ -174,6 +211,7 @@ async def get_task(task_id: int, db: AsyncSession = Depends(get_db)):
     cached = await redis_client.get(cache_key)
     if cached:
         CACHE_HITS.inc()
+        record_task_operation("get", "success")
         return json.loads(cached)
 
     CACHE_MISSES.inc()
@@ -181,11 +219,13 @@ async def get_task(task_id: int, db: AsyncSession = Depends(get_db)):
     task = await db.get(Task, task_id)
     DB_QUERY_DURATION.labels(operation="select").observe(time.perf_counter() - start)
     if not task:
+        record_task_operation("get", "not_found")
         raise HTTPException(status_code=404, detail="Task not found")
 
     # Store in cache
     response = TaskResponse.model_validate(task)
     await redis_client.setex(cache_key, CACHE_TTL, response.model_dump_json())
+    record_task_operation("get", "success")
     return task
 
 
@@ -196,6 +236,7 @@ async def update_task(
     start = time.perf_counter()
     task = await db.get(Task, task_id)
     if not task:
+        record_task_operation("update", "not_found")
         raise HTTPException(status_code=404, detail="Task not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
@@ -203,6 +244,7 @@ async def update_task(
     await db.refresh(task)
     DB_QUERY_DURATION.labels(operation="update").observe(time.perf_counter() - start)
     TASKS_UPDATED.inc()
+    record_task_operation("update", "success")
 
     # Invalidate cache
     await redis_client.delete(f"task:{task_id}")
@@ -214,11 +256,13 @@ async def delete_task(task_id: int, db: AsyncSession = Depends(get_db)):
     start = time.perf_counter()
     task = await db.get(Task, task_id)
     if not task:
+        record_task_operation("delete", "not_found")
         raise HTTPException(status_code=404, detail="Task not found")
     await db.delete(task)
     await db.commit()
     DB_QUERY_DURATION.labels(operation="delete").observe(time.perf_counter() - start)
     TASKS_DELETED.inc()
+    record_task_operation("delete", "success")
 
     # Invalidate cache
     await redis_client.delete(f"task:{task_id}")

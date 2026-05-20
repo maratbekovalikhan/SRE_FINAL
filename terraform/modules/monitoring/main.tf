@@ -19,9 +19,29 @@ resource "helm_release" "kube_prometheus_stack" {
 
   # Wait for all resources to be ready
   wait    = true
-  timeout = 600
+  timeout = 1800
 
   values = [yamlencode({
+    kubeEtcd = {
+      enabled = false
+    }
+
+    kubeControllerManager = {
+      enabled = false
+    }
+
+    kubeScheduler = {
+      enabled = false
+    }
+
+    kubeProxy = {
+      enabled = false
+    }
+
+    coreDns = {
+      enabled = false
+    }
+
     grafana = {
       adminPassword = var.grafana_admin_password
 
@@ -34,6 +54,17 @@ resource "helm_release" "kube_prometheus_stack" {
         ingressClassName = "nginx"
         hosts            = [var.grafana_host]
       }
+
+      resources = {
+        requests = {
+          cpu    = "50m"
+          memory = "128Mi"
+        }
+        limits = {
+          cpu    = "200m"
+          memory = "256Mi"
+        }
+      }
     }
 
     prometheus = {
@@ -42,45 +73,97 @@ resource "helm_release" "kube_prometheus_stack" {
         serviceMonitorSelectorNilUsesHelmValues = false
         podMonitorSelectorNilUsesHelmValues     = false
         ruleSelectorNilUsesHelmValues           = false
+        retention                              = "24h"
+        walCompression                         = true
+
+        resources = {
+          requests = {
+            cpu    = "100m"
+            memory = "512Mi"
+          }
+          limits = {
+            cpu    = "500m"
+            memory = "1Gi"
+          }
+        }
+      }
+    }
+
+    prometheusOperator = {
+      admissionWebhooks = {
+        enabled = false
+      }
+
+      resources = {
+        requests = {
+          cpu    = "50m"
+          memory = "128Mi"
+        }
+        limits = {
+          cpu    = "250m"
+          memory = "256Mi"
+        }
+      }
+    }
+
+    alertmanager = {
+      alertmanagerSpec = {
+        resources = {
+          requests = {
+            cpu    = "50m"
+            memory = "128Mi"
+          }
+          limits = {
+            cpu    = "200m"
+            memory = "256Mi"
+          }
+        }
+      }
+    }
+
+    "kube-state-metrics" = {
+      resources = {
+        requests = {
+          cpu    = "50m"
+          memory = "128Mi"
+        }
+        limits = {
+          cpu    = "200m"
+          memory = "256Mi"
+        }
+      }
+    }
+
+    "prometheus-node-exporter" = {
+      resources = {
+        requests = {
+          cpu    = "20m"
+          memory = "32Mi"
+        }
+        limits = {
+          cpu    = "100m"
+          memory = "128Mi"
+        }
       }
     }
   })]
 }
 
-# ─── ServiceMonitor for task-api ───────────────────────────────────────────
-resource "kubernetes_manifest" "app_service_monitor" {
-  manifest = {
-    apiVersion = "monitoring.coreos.com/v1"
-    kind       = "ServiceMonitor"
+# ─── Apply CRD-backed monitoring manifests after Helm installs the CRDs ─────
+resource "null_resource" "monitoring_manifests" {
+  triggers = {
+    service_monitor_sha = filesha256("${path.module}/../../../monitoring/servicemonitor.yaml")
+    prometheus_rule_sha = filesha256("${path.module}/../../../monitoring/prometheus-rule.yaml")
+    app_namespace       = var.app_namespace
+  }
 
-    metadata = {
-      name      = "task-api-monitor"
-      namespace = kubernetes_namespace.monitoring.metadata[0].name
+  provisioner "local-exec" {
+    command = "kubectl apply -f ${path.module}/../../../monitoring/servicemonitor.yaml && kubectl apply -f ${path.module}/../../../monitoring/prometheus-rule.yaml"
+  }
 
-      labels = {
-        "app.kubernetes.io/part-of" = "task-api"
-      }
-    }
-
-    spec = {
-      selector = {
-        matchLabels = {
-          app = "task-api"
-        }
-      }
-
-      namespaceSelector = {
-        matchNames = [var.app_namespace]
-      }
-
-      endpoints = [
-        {
-          port     = "http"
-          path     = "/metrics"
-          interval = "15s"
-        }
-      ]
-    }
+  provisioner "local-exec" {
+    when    = destroy
+    command = "kubectl delete -f ${path.module}/../../../monitoring/prometheus-rule.yaml --ignore-not-found && kubectl delete -f ${path.module}/../../../monitoring/servicemonitor.yaml --ignore-not-found"
   }
 
   depends_on = [helm_release.kube_prometheus_stack]

@@ -2,32 +2,26 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PID_FILE="$ROOT_DIR/.tmp/app.pid"
-LOG_FILE="$ROOT_DIR/.tmp/app.log"
-
-mkdir -p "$ROOT_DIR/.tmp"
-
-if [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  echo "App is already running on PID $(cat "$PID_FILE")"
-  echo "Open http://127.0.0.1:8000"
-  exit 0
-fi
-
 cd "$ROOT_DIR"
-TMPDIR="$ROOT_DIR/.tmp" PORT=8000 app/.venv/bin/python app/app.py >"$LOG_FILE" 2>&1 &
-APP_PID=$!
-echo "$APP_PID" >"$PID_FILE"
 
-for _ in {1..20}; do
-  if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
-    echo "App started successfully on http://127.0.0.1:8000"
-    echo "PID: $APP_PID"
-    echo "Logs: $LOG_FILE"
+echo "Starting full demo stack with Docker Compose..."
+docker compose up --build -d
+
+for _ in {1..60}; do
+  if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1 \
+    && curl -fsS http://127.0.0.1:8000/ready >/dev/null 2>&1 \
+    && curl -fsS http://127.0.0.1:9090/-/healthy >/dev/null 2>&1 \
+    && curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
+    echo "Demo stack is ready."
+    echo "App:          http://127.0.0.1:8000/docs"
+    echo "Prometheus:   http://127.0.0.1:9090"
+    echo "Grafana:      http://127.0.0.1:3000  (admin/admin)"
+    echo "Alertmanager: http://127.0.0.1:9093"
     exit 0
   fi
-  sleep 1
+  sleep 2
 done
 
-echo "App did not become healthy in time. Recent logs:"
-tail -n 20 "$LOG_FILE" || true
+echo "Demo stack did not become ready in time. Recent container status:"
+docker compose ps
 exit 1
