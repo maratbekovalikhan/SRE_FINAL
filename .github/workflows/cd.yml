@@ -14,6 +14,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   IMAGE_REF: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+  KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
 
 jobs:
   build-and-push:
@@ -71,7 +72,7 @@ jobs:
     needs:
       - build-and-push
       - security-scan
-    if: ${{ secrets.KUBE_CONFIG_DATA != '' }}
+    if: ${{ env.KUBE_CONFIG_DATA != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
